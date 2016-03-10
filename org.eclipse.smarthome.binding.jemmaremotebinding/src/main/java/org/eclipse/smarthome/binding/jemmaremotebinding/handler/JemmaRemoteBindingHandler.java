@@ -23,6 +23,11 @@ import org.eclipse.smarthome.core.types.Command;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import it.ismb.pert.jemma.jemmaDAL.Appliance;
+import it.ismb.pert.jemma.jemmaDAL.Appliance.UnsupportedActionException;
+import it.ismb.pert.jemma.jemmaDAL.Jemma.JemmaAuthenticator;
+import it.ismb.pert.jemma.jemmaDAL.JemmaRPCManager;
+
 /**
  * The {@link JemmaRemoteBindingHandler} is responsible for handling commands,
  * which are sent to one of the channels.

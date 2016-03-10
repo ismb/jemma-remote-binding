@@ -7,6 +7,21 @@ Bundle-Version: 0.8.0.qualifier
 Bundle-RequiredExecutionEnvironment: JavaSE-1.7
 Bundle-ClassPath: .
 Import-Package: 
+ org.apache.http;version="4.3.3",
+ org.apache.http.auth;version="4.3.6",
+ org.apache.http.client;version="4.3.6",
+ org.apache.http.client.cache;version="4.3.6",
+ org.apache.http.client.entity;version="4.3.6",
+ org.apache.http.client.methods;version="4.3.6",
+ org.apache.http.client.protocol;version="4.3.6",
+ org.apache.http.client.utils;version="4.3.6",
+ org.apache.http.entity;version="4.3.3",
+ org.apache.http.impl;version="4.3.3",
+ org.apache.http.impl.auth;version="4.3.6",
+ org.apache.http.impl.client;version="4.3.6",
+ org.apache.http.impl.client.cache;version="4.3.6",
+ org.apache.http.impl.entity;version="4.3.3",
+ org.apache.http.protocol;version="4.3.3",
  org.eclipse.smarthome.binding.jemmaremotebinding,
  org.eclipse.smarthome.binding.jemmaremotebinding.handler,
  org.eclipse.smarthome.config.core,
@@ -16,6 +31,7 @@ Import-Package:
  org.eclipse.smarthome.core.thing.binding.builder,
  org.eclipse.smarthome.core.thing.type,
  org.eclipse.smarthome.core.types,
+ org.json,
  org.slf4j
 Service-Component: OSGI-INF/*.xml
 Export-Package: org.eclipse.smarthome.binding.jemmaremotebinding,

@@ -8,8 +8,10 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.http.Consts;
 import org.apache.http.MethodNotSupportedException;
@@ -39,8 +41,8 @@ import org.apache.http.message.BasicNameValuePair;
 import it.ismb.pert.jemma.jemmaDAL.Jemma.JemmaAuthenticator;
 
 public class JemmaRPCManager 
-{	
-	private Map<Jemma,List<Appliance>> devicesMap = new HashMap<Jemma,List<Appliance>>();	
+{		
+	private Set<Jemma> jemmaInstances = new HashSet<Jemma>();
 	JemmaCredentialsProvider  credentialsProvider = null;
 
 	public JemmaRPCManager(List<URI> jemmasEndpoints, JemmaCredentialsProvider provider)
@@ -58,59 +60,41 @@ public class JemmaRPCManager
 			try 
 			{
 				jemmaInstance.connect();
+				jemmaInstances.add(jemmaInstance);
 				
-			} catch (InvalidCredentialsException | IOException e) 
+			} catch (InvalidCredentialsException | IOException | MethodNotSupportedException e) 
 			{
 				e.printStackTrace();
-			}
-			devicesMap.put(jemmaInstance, new ArrayList<Appliance>());
-		}
-		
+			}			
+		}		
 	}
 
 
 	/**
-	 * get devices from each JEMMA instance
+	 * Get devices from each JEMMA instance
 	 * 
 	 * @return list of all devices configured on each JEMMA instance  
 	 */
-	public synchronized List<Appliance> getAllDevices()
+	public List<Appliance> getAllAppliances()
 	{
-		List<Appliance> jemmasDevices = new ArrayList<Appliance>();	
+		List<Appliance> allAppliancesList = new ArrayList<Appliance>();			
 
-		retrieveDevices();
+		for(Jemma jemmaInstance : jemmaInstances)		
+			allAppliancesList.addAll(getAppliances(jemmaInstance));
 
-		for(List<Appliance> jemmaDevices : devicesMap.values())
-			jemmasDevices.addAll(jemmaDevices);
-
-		return jemmasDevices;
-	}
-	
-	public synchronized List<Appliance> getDevices(Jemma jemmaInstance)
-	{
-		return devicesMap.get(jemmaInstance);
-	}
-	
-
-	private  void retrieveDevices()
-	{				
-		for(Jemma jemmaInstance : devicesMap.keySet())		
-		{
-			List<Appliance> jemmaDevicesList =  devicesMap.get(jemmaInstance);
-			
-			try 
-			{
-				List<Appliance> currentDevices = jemmaInstance.getDevices();
-				jemmaDevicesList.clear();
-				jemmaDevicesList.addAll(currentDevices);
-				
-			} catch (MethodNotSupportedException | IOException | InvalidCredentialsException e) {
-				e.printStackTrace();
-			}					
-		}
+		return allAppliancesList;
 	}
 	
 	
+	/**
+	 * Get devices from a specific JEMMA instance
+	 * 
+	 * @return list of all devices configured on each JEMMA instance  
+	 */
+	public List<Appliance> getAppliances(Jemma jemmaInstance)
+	{		
+		return jemmaInstance.getAppliances();
+	}
 	
 	
 	public interface JemmaCredentialsProvider

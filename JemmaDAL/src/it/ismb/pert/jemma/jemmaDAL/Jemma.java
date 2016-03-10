@@ -33,11 +33,15 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import it.ismb.pert.jemma.jemmaDAL.Jemma.JemmaMethod;
+
 public class Jemma 
 {
 	private URI jemmaURI;	
 	private JemmaAuthenticator jemmaAuthenticator;
 	private JemmaEnquirer enquirer = null;
+	private Set<JemmaMethod> methods = null;
+	private List<Appliance> appliances = null;
 	private boolean connected = false;
 
 	public Jemma(URI jemmaURL)
@@ -50,34 +54,64 @@ public class Jemma
 		this.jemmaAuthenticator = jemmaAuthenticator;
 	}
 
-	public void connect() throws InvalidCredentialsException, IOException 
+	public void connect() throws InvalidCredentialsException, IOException, MethodNotSupportedException 
 	{
 		if(enquirer == null || !connected)
 		{
 			if(enquirer != null)
 				enquirer.release();
 			enquirer = new JemmaEnquirer(jemmaURI);
-			enquirer.connect(jemmaAuthenticator);
+			enquirer.connect(jemmaAuthenticator);						
+			methods = getMethods();
 		}
 		connected = true;
 	}
-	private void disconnect()
+
+	public List<Appliance> getAppliances() 
 	{
-		if(enquirer != null)
-			enquirer.release();
-		enquirer = null;
-		connected = false;
+		List<Appliance> localAppliances = appliances;		
+		
+		if(appliances == null)
+		{
+			try
+			{		
+				localAppliances = enquirer.getAppliances();
+				appliances = localAppliances;
+			}
+			catch(IOException | MethodNotSupportedException e)
+			{
+				localAppliances = new ArrayList<Appliance>();
+				e.printStackTrace();
+			}
+		}
+
+		return localAppliances;		
 	}
-
-	public List<Appliance> getDevices() throws IOException, InvalidCredentialsException, MethodNotSupportedException
+	
+	public Set<JemmaMethod> getMethods()
 	{
-		List<Appliance> appliancesList;
-		if(!isConnected())		
-			connect();
-
-		appliancesList = enquirer.getDevices();
-
-		return appliancesList;		
+		Set<JemmaMethod> localMethods = methods;
+		if(localMethods == null)
+		{	
+			JemmaResponse response;	
+			try 
+			{
+				 response = enquirer.callJemmaMethod(JemmaMethod.SYSTEM_LIST_METHODS, new ArrayList<Object>());
+				 methods = localMethods = parseMethodsList(response);
+				 				 
+			} catch (MethodNotSupportedException | IOException | JSONException e) 
+			{
+				localMethods = new HashSet<JemmaMethod>();
+				e.printStackTrace();
+			}			
+		}
+		
+		return localMethods;
+	}
+	
+	private boolean canDoThis(JemmaMethod method)
+	{		
+		return methods.contains(method);
 	}
 
 	public URI getURI()
@@ -171,5 +205,38 @@ public class Jemma
 		{			
 			return cam.get(content);
 		}
+	}
+	
+	public static Jemma buildJemma()
+	{
+		return null;
+	}
+	
+	public static Set<JemmaMethod> parseMethodsList(JemmaResponse response) throws JSONException
+	{
+		JSONObject jsonResponse = response.getResponseAsJSONObject();
+		JSONArray results = jsonResponse.getJSONArray(JemmaEnquirer.RESULT_KEY);
+		String methodName;
+		JemmaMethod supportedMethod;
+		Set<JemmaMethod> methods = new HashSet<JemmaMethod>();
+		for(int i = 0; i < results.length(); ++i)
+		{
+			methodName = results.getString(i).split("[.]")[1];
+
+			if((supportedMethod = JemmaMethod.parse(methodName)) != null)						 
+				methods.add(supportedMethod);					
+		}		
+		
+		return methods;
+	}		
+	
+	public static class JemmaException extends Exception
+	{
+		
+	}
+	
+	public static class UnsupportedMethodException extends JemmaException
+	{
+		
 	}
 }

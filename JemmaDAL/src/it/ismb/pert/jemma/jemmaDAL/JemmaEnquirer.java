@@ -45,7 +45,7 @@ public class JemmaEnquirer
 	private static final String METHOD_KEY="method";
 	private static final String PARAMS_KEY="params";
 	private static final String INTERFACE_NAME_KEY="interface.name";
-	private static final String RESULT_KEY="result";
+	public static final String RESULT_KEY="result";
 
 
 	private int id = 1;
@@ -55,17 +55,13 @@ public class JemmaEnquirer
 	private URI jsonRPCURI = null;
 	private JemmaAuthenticator jemmaAuthenticator;
 	private HttpClientContext jemmaHttpContext;
-	private HashSet<JemmaMethod> methods = new HashSet<JemmaMethod>();
-	
-
-
+	private Set<JemmaMethod> defaultMethods = new HashSet<JemmaMethod>();
 
 	public JemmaEnquirer(URI jemmaURI) 
 	{
-		this.jemmaURI = jemmaURI;
-		methods.add(JemmaMethod.SYSTEM_LIST_METHODS);
-		methods.add(JemmaMethod.OSGI_FIND);
-		methods.add(JemmaMethod.OSGI_BIND);
+		this.jemmaURI = jemmaURI;		
+		defaultMethods.add(JemmaMethod.OSGI_FIND);
+		defaultMethods.add(JemmaMethod.OSGI_BIND);
 	}
 
 	public void connect(JemmaAuthenticator jemmaAuthenticator) throws InvalidCredentialsException, IOException
@@ -76,8 +72,7 @@ public class JemmaEnquirer
 		List<Object> emptyList = new ArrayList<Object>();
 		login();
 		try
-		{
-			callJemmaMethod(JemmaMethod.SYSTEM_LIST_METHODS, emptyList);
+		{			
 			callJemmaMethod(JemmaMethod.OSGI_FIND, emptyList);
 			callJemmaMethod(JemmaMethod.OSGI_BIND, emptyList);
 		}
@@ -87,16 +82,13 @@ public class JemmaEnquirer
 		}
 	}
 
-	public List<Appliance> getDevices() throws MethodNotSupportedException, IOException
+	public List<Appliance> getAppliances() throws MethodNotSupportedException, IOException
 	{
-		
+
 		List<Appliance> appliancesList = new ArrayList<Appliance>();
 		List<Object> params = new ArrayList<Object>();
-		JemmaResponse response =  callJemmaMethod(JemmaMethod.GET_APPLIANCES_CONFIGURATIONS_DEMO, params);
-		JemmaResponse applianceClusterResponse = null;
-		JSONObject jsonApplianceMap = null;
-		JSONObject jsonClustersMap = null;
-		String appliancePid;
+		JemmaResponse response =  callJemmaMethod(JemmaMethod.GET_APPLIANCES_CONFIGURATIONS_DEMO, params);		
+		JSONObject jsonApplianceMap = null;		
 		//{"result":{"javaClass":"java.util.ArrayList","list":[{"javaClass":"java.util.Hashtable","map":{"ah.app.eps.types":["ah.ep.common","ah.ep.zigbee.SmartPlug"],"ah.location.pid":"0","appliance.pid":"ah.app.3521399293210526201-8","device_value":{"javaClass":"java.util.LinkedList","list":[]},"availability":0,"category":{"iconName":"other.png","javaClass":"org.energy_home.jemma.ah.hac.lib.ext.Category","name":"Other","pid":"1"},"ah.category.pid":"1","ah.icon":"plug.png","ah.app.type":"org.energy_home.jemma.ah.zigbee.smartplug","ah.app.name":"SmartPlug 1"}}]},"id":4}
 
 		try 
@@ -106,15 +98,8 @@ public class JemmaEnquirer
 			{
 				try
 				{
-					jsonApplianceMap = jsonAppliancesList.getJSONObject(i).getJSONObject("map");
-					appliancePid = Appliance.getAppliancePid(jsonApplianceMap);						
-					params.clear();
-					params.add(appliancePid);
-					//{"result":{"javaClass":"java.util.Hashtable","map":{"cluster1":"org.energy_home.jemma.ah.cluster.zigbee.general.OnOffServer","cluster0":"org.energy_home.jemma.ah.cluster.ah.ConfigServer","pid":"ah.app.3521399293210526201-8","cluster4":"org.energy_home.jemma.ah.cluster.ah.ConfigServer","cluster3":"org.energy_home.jemma.ah.cluster.zigbee.general.BasicServer","cluster2":"org.energy_home.jemma.ah.cluster.zigbee.metering.SimpleMeteringServer"}},"id":686}
-					applianceClusterResponse = callJemmaMethod(JemmaMethod.GET_DEVICE_CLUSTERS, params);
-					jsonClustersMap = applianceClusterResponse.getResponseAsJSONObject().getJSONObject(RESULT_KEY).getJSONObject("map");
-
-					Appliance appliance = new Appliance(jsonApplianceMap, jsonClustersMap, this);
+					jsonApplianceMap = jsonAppliancesList.getJSONObject(i).getJSONObject("map");										
+					Appliance appliance = Appliance.buildAppliance(jsonApplianceMap, this);
 					appliancesList.add(appliance);
 				}
 				catch(JSONException e)
@@ -130,11 +115,8 @@ public class JemmaEnquirer
 		return appliancesList;
 	}
 
-	private JemmaResponse callJemmaMethod(JemmaMethod jemmaMethod, List<Object> params) throws MethodNotSupportedException, IOException
-	{									
-		if(!hasMethod(jemmaMethod))
-			throw new MethodNotSupportedException(jemmaMethod.toString());
-
+	public JemmaResponse callJemmaMethod(JemmaMethod jemmaMethod, List<Object> params) throws MethodNotSupportedException, IOException
+	{											
 		URI jsonRPCURI = getJSONRPCURI();
 		HttpEntity entity = forgeHttpEntity(jemmaMethod, params);
 
@@ -157,21 +139,6 @@ public class JemmaEnquirer
 		{
 			switch(calleeMethod)
 			{
-			case SYSTEM_LIST_METHODS:
-			{
-				JSONObject jsonResponse = response.getResponseAsJSONObject();
-				JSONArray results = jsonResponse.getJSONArray("result");
-				String methodName;
-				JemmaMethod supportedMethod;
-				for(int i = 0; i < results.length(); ++i)
-				{
-					methodName = results.getString(i).split("[.]")[1];
-
-					if((supportedMethod = JemmaMethod.parse(methodName)) != null)						 
-						methods.add(supportedMethod);					
-				}									
-				break;
-			}
 			case OSGI_FIND:
 			{
 				//{"result":{"javaClass":"java.util.ArrayList","list":[{"javaClass":"java.util.HashMap","map":{"service.id":164,"interface.name":"org.energy_home.jemma.ah.greenathome.GreenAtHomeApplianceService"}}]},"id":2}'
@@ -184,6 +151,8 @@ public class JemmaEnquirer
 			}
 			case OSGI_BIND:
 				break;
+				default:
+					break;
 			}
 		}
 		catch(JSONException e)
@@ -284,12 +253,6 @@ public class JemmaEnquirer
 		return buffer.toString();
 	}
 
-
-	private boolean hasMethod(JemmaMethod method)
-	{			
-		return methods.contains(method);
-	}
-
 	private int getTransactionId()
 	{
 		return id++;
@@ -305,17 +268,6 @@ public class JemmaEnquirer
 		response = client.execute(post, jemmaHttpContext);			
 		return response;
 	}
-
-	private Set<JemmaMethod> getMethodsSet() throws IOException
-	{
-		Set<JemmaMethod> methodsName = new HashSet<JemmaMethod>();
-
-		URI jsonRPCURI = getJSONRPCURI();			
-
-		return methodsName;		
-	}
-
-
 
 	private void login() throws  InvalidCredentialsException, IOException
 	{

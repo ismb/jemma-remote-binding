@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<thing:thing-descriptions bindingId="jemmaremotebinding"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:thing="http://eclipse.org/smarthome/schemas/thing-description/v1.0.0"
+        xsi:schemaLocation="http://eclipse.org/smarthome/schemas/thing-description/v1.0.0 http://eclipse.org/smarthome/schemas/thing-description-1.0.0.xsd">
+        
+        <bridge-type id="jemma">
+            <label>JEMMA bridge instance </label>
+            <description>It represents a JEMMA GW through which it is possible to retrieve discovered appliances</description>        
+            <config-description>
+                <parameter name="address" type="text">
+                    <label>Address</label>
+                    <description>Address of the host where it is possible to find a JEMMA GW</description>
+                    <required>true</required>
+                </parameter>            
+                <parameter name="port" type="text">
+                    <label>Port number</label>
+                    <description>Port associated to the address where it is possible to find a JEMMA GW</description>
+                    <required>true</required>
+                </parameter>            
+                <parameter name="username" type="text">
+                    <label>Username</label>                    
+                    <description>Name of a registered user</description>
+                    <required>false</required>
+                </parameter>
+                <parameter name="password" type="text">
+                    <label>Password</label>                    
+                    <description>Password associated to the username</description>
+                    <required>false</required>
+                </parameter>                
+            </config-description>            
+        </bridge-type>                
+</thing:thing-descriptions>        

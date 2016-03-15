@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<thing:thing-descriptions bindingId="jemmaremotebinding"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:thing="http://eclipse.org/smarthome/schemas/thing-description/v1.0.0"
+        xsi:schemaLocation="http://eclipse.org/smarthome/schemas/thing-description/v1.0.0 http://eclipse.org/smarthome/schemas/thing-description-1.0.0.xsd">
+        
+        <thing-type id="FlexPlug_A00500201">
+            <supported-bridge-type-refs>
+                <bridge-type-ref id="jemma"/>
+            </supported-bridge-type-refs>
+            
+            <label>Smart plug</label>
+            <description>FlexPlug is a ZigBee smart plug</description>
+            <channels>
+                <channel typeId="onoff" id="onoff"/>
+            </channels>
+            
+            <properties>
+                <property name="vendor">FlexGrid</property>
+                <property name="modelId">A00500201</property>
+            </properties>                                   
+        </thing-type>        
+</thing:thing-descriptions>        

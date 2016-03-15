@@ -8,9 +8,9 @@
     http://www.eclipse.org/legal/epl-v10.html
 
 -->
-<scr:component xmlns:scr="http://www.osgi.org/xmlns/scr/v1.1.0" immediate="true" name="binding.jemmaremotebinding">
+<scr:component xmlns:scr="http://www.osgi.org/xmlns/scr/v1.1.0" immediate="true" name="binding.jemma">
 
-   <implementation class="org.eclipse.smarthome.binding.jemmaremotebinding.internal.JemmaRemoteBindingHandlerFactory"/>
+   <implementation class="org.eclipse.smarthome.binding.jemmaremotebinding.internal.JemmaHandlerFactory"/>
 
    <service>
       <provide interface="org.eclipse.smarthome.core.thing.binding.ThingHandlerFactory"/>

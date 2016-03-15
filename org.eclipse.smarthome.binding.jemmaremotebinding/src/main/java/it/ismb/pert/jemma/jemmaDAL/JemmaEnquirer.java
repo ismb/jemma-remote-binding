@@ -33,19 +33,29 @@ import it.ismb.pert.jemma.jemmaDAL.Jemma.JemmaResponse;
 
 public class JemmaEnquirer
 {
-	private static final String LOGIN = "http://localhost:8080/demo/conf/login.html?username=admin&password=Admin&submit=Entra";
-	private static final String QUERY = "{id:177,method:\"163.getAppliancesConfigurationsDemo\",params:[]}";
-	private static final String LISTMETHODS = "{id:1,method:\"system.listMethods\",params:[]}";
-	private static final String OSGIFIND = "{id:2,method:\"OSGi.find\",params:[\"org.energy_home.jemma.ah.greenathome.GreenAtHomeApplianceService\"]}";
-	private static final String OSGIBIND = "{id:3,method:\"OSGi.bind\",params:[{\"javaClass\": \"java.util.HashMap\", \"map\": {\"service.id\": 164, \"interface.name\": \"org.energy_home.jemma.ah.greenathome.GreenAtHomeApplianceService\"}}]}";
-	private static final String USERNAME_KEY = "username";
-	private static final String PASSWORD_KEY = "password";
-	private static final String ID_KEY = "id";
-	private static final String SERVICE_ID_KEY = "service.id";
-	private static final String METHOD_KEY = "method";
-	private static final String PARAMS_KEY = "params";
-	private static final String INTERFACE_NAME_KEY = "interface.name";
+	/*
+	 * private static final String LOGIN =
+	 * "http://localhost:8080/demo/conf/login.html?username=admin&password=Admin&submit=Entra";
+	 * private static final String QUERY =
+	 * "{id:177,method:\"163.getAppliancesConfigurationsDemo\",params:[]}";
+	 * private static final String LISTMETHODS =
+	 * "{id:1,method:\"system.listMethods\",params:[]}"; private static final
+	 * String OSGIFIND =
+	 * "{id:2,method:\"OSGi.find\",params:[\"org.energy_home.jemma.ah.greenathome.GreenAtHomeApplianceService\"]}";
+	 * private static final String OSGIBIND =
+	 * "{id:3,method:\"OSGi.bind\",params:[{\"javaClass\": \"java.util.HashMap\", \"map\": {\"service.id\": 164, \"interface.name\": \"org.energy_home.jemma.ah.greenathome.GreenAtHomeApplianceService\"}}]}"
+	 * ;
+	 */
+	public static final String USERNAME_KEY = "username";
+	public static final String PASSWORD_KEY = "password";
+	public static final String ID_KEY = "id";
+	public static final String SERVICE_ID_KEY = "service.id";
+	public static final String METHOD_KEY = "method";
+	public static final String PARAMS_KEY = "params";
+	public static final String INTERFACE_NAME_KEY = "interface.name";
 	public static final String RESULT_KEY = "result";
+	public static final String MAP_KEY = "map";
+	public static final String LIST_KEY = "list";
 
 	private int id = 1;
 	private int serviceId;
@@ -62,6 +72,7 @@ public class JemmaEnquirer
 		this.jemmaURI = jemmaURI;
 		defaultMethods.add(JemmaMethod.OSGI_FIND);
 		defaultMethods.add(JemmaMethod.OSGI_BIND);
+
 	}
 
 	public void connect(JemmaAuthenticator jemmaAuthenticator) throws InvalidCredentialsException, IOException
@@ -82,10 +93,10 @@ public class JemmaEnquirer
 		}
 	}
 
-	public List<Appliance> getAppliances() throws MethodNotSupportedException, IOException
+	public Set<Appliance> getAppliances() throws MethodNotSupportedException, IOException
 	{
 
-		List<Appliance> appliancesList = new ArrayList<Appliance>();
+		Set<Appliance> appliancesList = new HashSet<Appliance>();
 		List<Object> params = new ArrayList<Object>();
 		JemmaResponse response = callJemmaMethod(JemmaMethod.GET_APPLIANCES_CONFIGURATIONS_DEMO, params);
 		JSONObject jsonApplianceMap = null;
@@ -97,9 +108,10 @@ public class JemmaEnquirer
 			JSONArray jsonAppliancesList = response.getResponseAsJSONObject().getJSONObject(RESULT_KEY)
 					.getJSONArray("list");
 			for (int i = 0; i < jsonAppliancesList.length(); ++i)
+			{
 				try
 				{
-					jsonApplianceMap = jsonAppliancesList.getJSONObject(i).getJSONObject("map");
+					jsonApplianceMap = jsonAppliancesList.getJSONObject(i).getJSONObject(MAP_KEY);
 					Appliance appliance = Appliance.buildAppliance(jsonApplianceMap, this);
 					appliancesList.add(appliance);
 				}
@@ -107,6 +119,7 @@ public class JemmaEnquirer
 				{
 					e.printStackTrace();
 				}
+			}
 		}
 		catch (JSONException e)
 		{
@@ -125,10 +138,12 @@ public class JemmaEnquirer
 
 		HttpResponse response = performHttpPost(jsonRPCURI, entity);
 		if (!isValidResponse(response))
+		{
 			throw new HttpResponseException(response.getStatusLine().getStatusCode(), "Malformed response");
+		}
 
 		String responseAsString = getResponseAsString(response.getEntity());
-		System.out.println("RECEIVED RESPONSE - " + responseAsString);
+		// System.out.println("RECEIVED RESPONSE - " + responseAsString);
 
 		JemmaResponse jemmaResponse = new JemmaResponse(responseAsString);
 		processJemmaResponse(jemmaMethod, jemmaResponse);
@@ -146,7 +161,7 @@ public class JemmaEnquirer
 			{
 				// {"result":{"javaClass":"java.util.ArrayList","list":[{"javaClass":"java.util.HashMap","map":{"service.id":164,"interface.name":"org.energy_home.jemma.ah.greenathome.GreenAtHomeApplianceService"}}]},"id":2}'
 
-				JSONObject map = response.getResponseAsJSONObject().getJSONObject("result").getJSONArray("list")
+				JSONObject map = response.getResponseAsJSONObject().getJSONObject(RESULT_KEY).getJSONArray(LIST_KEY)
 						.getJSONObject(0).getJSONObject("map");
 				serviceId = map.getInt(SERVICE_ID_KEY);
 				interfaceName = map.getString(INTERFACE_NAME_KEY);
@@ -191,7 +206,7 @@ public class JemmaEnquirer
 
 				JSONObject bindDetails = new JSONObject();
 				bindDetails.put("javaClass", "java.util.HashMap");
-				bindDetails.put("map", jsonMap);
+				bindDetails.put(MAP_KEY, jsonMap);
 				jsonParams.put(bindDetails);
 				break;
 			}
@@ -210,7 +225,9 @@ public class JemmaEnquirer
 			jsonEntity.put(METHOD_KEY,
 					serviceIdString + (serviceIdString.length() > 0 ? "." : "") + jemmaMethod.methodName);
 			for (Object o : params)
+			{
 				jsonParams.put(o);
+			}
 			jsonEntity.put(PARAMS_KEY, jsonParams);
 		}
 		catch (JSONException e)
@@ -233,17 +250,13 @@ public class JemmaEnquirer
 		{
 			isr = new InputStreamReader(responseEntity.getContent());
 			while ((readBytes = isr.read(chars)) > 0)
+			{
 				buffer.append(new String(chars, 0, readBytes));
+			}
 
 		}
-		catch (UnsupportedOperationException e)
+		catch (UnsupportedOperationException | IOException e)
 		{
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		catch (IOException e)
-		{
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		finally
@@ -251,11 +264,12 @@ public class JemmaEnquirer
 			try
 			{
 				if (isr != null)
+				{
 					isr.close();
+				}
 			}
 			catch (IOException e)
 			{
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
@@ -295,7 +309,9 @@ public class JemmaEnquirer
 
 			HttpResponse responseLogin = clientHttp.execute(getLogin);
 			if (!isValidResponse(responseLogin))
+			{
 				throw new InvalidCredentialsException();
+			}
 
 		}
 		catch (URISyntaxException e)

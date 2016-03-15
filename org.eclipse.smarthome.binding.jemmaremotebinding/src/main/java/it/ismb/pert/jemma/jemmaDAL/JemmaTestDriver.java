@@ -1,13 +1,10 @@
 package it.ismb.pert.jemma.jemmaDAL;
 
-import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
-import it.ismb.pert.jemma.jemmaDAL.Appliance.ApplianceAction;
 import it.ismb.pert.jemma.jemmaDAL.Appliance.UnsupportedActionException;
 import it.ismb.pert.jemma.jemmaDAL.Jemma.JemmaAuthenticator;
 import it.ismb.pert.jemma.jemmaDAL.JemmaRPCManager.JemmaCredentialsProvider;
@@ -26,7 +23,10 @@ public class JemmaTestDriver implements JemmaCredentialsProvider
 			List<URI> jemmasList = new ArrayList<URI>();
 			jemmasList.add(jemmaURI);
 			
-			JemmaRPCManager manager = new JemmaRPCManager(jemmasList, test);					
+			JemmaRPCManager manager = JemmaRPCManager.getInstance();
+			for(URI uri : jemmasList)
+			    manager.buildJemma(jemmaURI, test);
+			
 			List<Object> actionParams = new ArrayList<Object>();
 			for(Appliance device : manager.getAllAppliances())
 			{
@@ -36,7 +36,7 @@ public class JemmaTestDriver implements JemmaCredentialsProvider
 				{
 					System.out.println("Status: "+status);
 					actionParams.clear();
-					actionParams.add(device.getAppliancePid());
+					actionParams.add(device.getId());
 					actionParams.add(status);					
 					device.performAction(Appliance.ApplianceAction.OnOffServer, actionParams);
 					try {

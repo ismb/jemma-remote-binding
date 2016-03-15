@@ -2,9 +2,7 @@ package it.ismb.pert.jemma.jemmaDAL;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 import org.apache.http.MethodNotSupportedException;
@@ -14,55 +12,94 @@ import it.ismb.pert.jemma.jemmaDAL.Jemma.JemmaAuthenticator;
 
 public class JemmaRPCManager
 {
+    private static JemmaRPCManager jemmaManagerInstance= null;
 	private Set<Jemma> jemmaInstances = new HashSet<Jemma>();
 	JemmaCredentialsProvider credentialsProvider = null;
 
-	public JemmaRPCManager(List<URI> jemmasEndpoints, JemmaCredentialsProvider provider)
+	private JemmaRPCManager()
+	{	    
+	}
+	
+	public static JemmaRPCManager getInstance()
 	{
-		Jemma jemmaInstance;
-		JemmaAuthenticator authenticator = null;
-		credentialsProvider = provider;
+	    if(jemmaManagerInstance == null)	    
+	        jemmaManagerInstance = new JemmaRPCManager();	    
+	    
+	    return jemmaManagerInstance;
+	}
+	
+	public Set<Jemma> addAll(Set<URI> jemmaURIsSet, JemmaCredentialsProvider provider)
+	{
+	    Set<Jemma> jemmasSet = new HashSet<Jemma>();
+	    for(URI jemmaURI : jemmaURIsSet)
+	        jemmasSet.add(buildJemma(jemmaURI, provider));
+	    
+	    return jemmasSet;
+	}
+			
+	public Jemma buildJemma(URI jemmaURI, JemmaCredentialsProvider provider)
+	{
+	    Jemma jemmaInstance = null;
+        JemmaAuthenticator authenticator = null;
+        
+        credentialsProvider = provider;
+        
+	    if (credentialsProvider != null)
+            authenticator = credentialsProvider.submitCredential(jemmaURI);
+        jemmaInstance = new Jemma(jemmaURI, (authenticator == null) ? new JemmaAuthenticator() : authenticator);
 
-		for (URI jemmaURI : jemmasEndpoints)
-		{
-			if (credentialsProvider != null)
-				authenticator = credentialsProvider.submitCredential(jemmaURI);
-			jemmaInstance = new Jemma(jemmaURI, (authenticator == null) ? new JemmaAuthenticator() : authenticator);
-
-			try
-			{
-				jemmaInstance.connect();
-				jemmaInstances.add(jemmaInstance);
-
-			}
-			catch (InvalidCredentialsException | IOException | MethodNotSupportedException e)
-			{
-				e.printStackTrace();
-			}
-		}
+        try
+        {
+            jemmaInstance.connect();
+            jemmaInstances.add(jemmaInstance);
+        }
+        catch (InvalidCredentialsException | IOException | MethodNotSupportedException e)
+        {
+            return null;
+        }	    
+        
+        return jemmaInstance;
+	}
+	
+	public void removeJemma(Jemma jemmaInstance)
+	{
+	    jemmaInstance.disconnect();
+	    this.jemmaInstances.remove(jemmaInstance);
 	}
 
 	/**
 	 * Get devices from each JEMMA instance
 	 *
-	 * @return list of all devices configured on each JEMMA instance
+	 * @return set of all devices configured on each JEMMA instance
 	 */
-	public List<Appliance> getAllAppliances()
+	public Set<Appliance> getAllAppliances()
 	{
-		List<Appliance> allAppliancesList = new ArrayList<Appliance>();
+		Set<Appliance> allAppliancesList = new HashSet<Appliance>();
 
 		for (Jemma jemmaInstance : jemmaInstances)
 			allAppliancesList.addAll(getAppliances(jemmaInstance));
 
-		return allAppliancesList;
+		return allAppliancesList;	
 	}
+	
+	/**
+	 * Get JEMMA instances
+	 * 
+	 * @return set of JEMMA instances currently registered
+	 */
+	
+	public Set<Jemma> getJemmaInstances()
+	{
+	    return this.jemmaInstances;
+	}
+	
 
 	/**
 	 * Get devices from a specific JEMMA instance
 	 *
 	 * @return list of all devices configured on each JEMMA instance
 	 */
-	public List<Appliance> getAppliances(Jemma jemmaInstance)
+	public Set<Appliance> getAppliances(Jemma jemmaInstance)
 	{
 		return jemmaInstance.getAppliances();
 	}

@@ -22,6 +22,7 @@ import org.eclipse.smarthome.core.thing.ThingTypeUID;
 import org.eclipse.smarthome.core.thing.binding.BaseThingHandler;
 import org.eclipse.smarthome.core.thing.binding.ThingHandler;
 import org.eclipse.smarthome.core.types.Command;
+import org.eclipse.smarthome.core.types.State;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,7 +32,6 @@ import it.ismb.pert.jemma.jemmaDAL.Appliance;
 import it.ismb.pert.jemma.jemmaDAL.Appliance.UnsupportedActionException;
 import it.ismb.pert.jemma.jemmaDAL.Jemma;
 
-
 /**
  * The {@link JemmaApplianceHandler} is responsible for handling commands, which
  * are sent to one of the channels.
@@ -39,70 +39,58 @@ import it.ismb.pert.jemma.jemmaDAL.Jemma;
  * @author Sandro Tassone - Initial contribution
  */
 public class JemmaApplianceHandler extends BaseThingHandler
-implements ApplianceStatusListener
-{
+        implements ApplianceStatusListener, Appliance.OnApplianceStatusUpdatedListener {
 
-    private Logger logger = LoggerFactory.getLogger(JemmaApplianceHandler.class);    
-    public static final Set<ThingTypeUID> SUPPORTED_THING_TYPES = Sets.newHashSet(THING_TYPE_FLEXPLUG_A00500201, THING_TYPE_UNKNOWN);
-    private String applianceId;
-    private Appliance appliance = null;   
+    private Logger logger = LoggerFactory.getLogger(JemmaApplianceHandler.class);
+    public static final Set<ThingTypeUID> SUPPORTED_THING_TYPES = Sets.newHashSet(THING_TYPE_FLEXPLUG_A00500201,
+            THING_TYPE_UNKNOWN);
+    private Appliance appliance = null;
 
-    public JemmaApplianceHandler(Thing thing)
-    {
-        super(thing);        
+    public JemmaApplianceHandler(Thing thing) {
+        super(thing);
     }
 
     @Override
-    public void handleCommand(ChannelUID channelUID, Command command)
-    {
-        
-        switch(channelUID.getId())
-        {
-            case CHANNEL_ONOFF:
-                if(command instanceof OnOffType)
-                    performOnOffAction((OnOffType)command);                
-                break;
+    public void handleCommand(ChannelUID channelUID, Command command) {
+        if (getAppliance() != null) {
+            switch (channelUID.getId()) {
+                case CHANNEL_ONOFF:
+                    if (command instanceof OnOffType) {
+                        performOnOffAction((OnOffType) command);
+                    }
+                    break;
+            }
         }
+        updateStatus(ThingStatus.ONLINE);
     }
-    
-    private void performOnOffAction(OnOffType onOffType)
-    {
+
+    private void performOnOffAction(OnOffType onOffType) {
         List<Object> params = new ArrayList<>();
         params.add(appliance.getId());
-        if(onOffType == OnOffType.ON)
+        if (onOffType == OnOffType.ON) {
             params.add(1);
-        else
+        } else {
             params.add(0);
-        try
-        {
-            appliance.performAction(Appliance.ApplianceAction.OnOffServer,params);
         }
-        catch(UnsupportedActionException e)
-        {
-            logger.info("Cannot perform action {} of type OnOffType on appliance {}",onOffType, appliance.getId());
+        try {
+            appliance.performAction(Appliance.ApplianceAction.OnOffServer, params);
+        } catch (UnsupportedActionException e) {
+            logger.info("Cannot perform action {} of type OnOffType on appliance {}", onOffType, appliance.getId());
         }
     }
-            
-    
 
     @Override
-    public void initialize()
-    {
+    public void initialize() {
         // TODO: Initialize the thing. If done set status to ONLINE to indicate
         // proper working.
         // Long running initialization should be done asynchronously in
         // background.
-        
-        
-        JemmaBridgeHandler jemmaHandler = getBridgeHandler();
-        
-        if(jemmaHandler != null)
-        {            
-        
-            String applianceId = (String)getConfig().get(APPLIANCE_ID);
-            appliance = jemmaHandler.getApplianceById(applianceId);        
+
+        if (getAppliance() != null) {
             updateStatus(ThingStatus.ONLINE);
-        }        
+        } else {
+            updateStatus(ThingStatus.OFFLINE);
+        }
 
         // Note: When initialization can NOT be done set the status with more
         // details for further
@@ -115,57 +103,90 @@ implements ApplianceStatusListener
         // ThingStatusDetail.CONFIGURATION_ERROR,
         // "Can not access device as username and/or password are invalid");
     }
-        
-    
-    private JemmaBridgeHandler getBridgeHandler()
-    {
-        Bridge bridge;
-        if((bridge = getBridge()) == null)
-            return null;
-        
-        ThingHandler handler = bridge.getHandler();
-        if(handler instanceof JemmaBridgeHandler)
-            return (JemmaBridgeHandler)handler;
-        return null;        
+
+    private Appliance getAppliance() {
+        Appliance localAppliance = appliance;
+
+        if (localAppliance == null) {
+            JemmaBridgeHandler jemmaHandler = null;
+            if ((jemmaHandler = getBridgeHandler()) != null) {
+                String applianceId = (String) getConfig().get(APPLIANCE_ID);
+                appliance = localAppliance = jemmaHandler.getApplianceById(applianceId);
+                appliance.registerOnApplianceStatusUpdatedListener(this);
+                jemmaHandler.registerApplianceStatusListener(this);
+                logger.debug("Registered registerApplianceStatusListener for {} appliance", appliance.getId());
+            }
+        }
+
+        return localAppliance;
     }
- 
+
     @Override
-    public void onApplianceAdded(Jemma jemma, Appliance appliance)
-    {
-        if (appliance.getId().equals(applianceId))
-        {
+    public void dispose() {
+        super.dispose();
+        JemmaBridgeHandler jemmaHandler;
+        if ((jemmaHandler = getBridgeHandler()) != null) {
+            jemmaHandler.unregisterApplianceStatusListener(this);
+        }
+
+    }
+
+    private String getApplianceId() {
+        return getAppliance().getId();
+    }
+
+    private JemmaBridgeHandler getBridgeHandler() {
+        Bridge bridge;
+        if ((bridge = getBridge()) == null) {
+            return null;
+        }
+
+        ThingHandler handler = bridge.getHandler();
+        if (handler instanceof JemmaBridgeHandler) {
+            return (JemmaBridgeHandler) handler;
+        }
+        return null;
+    }
+
+    @Override
+    public void onApplianceAdded(Jemma jemma, Appliance appliance) {
+        String applianceId = getApplianceId();
+        if (appliance.getId().equals(applianceId)) {
             updateStatus(ThingStatus.ONLINE);
             onApplianceStatusChanged(jemma, appliance);
         }
     }
 
     @Override
-    public void onApplianceRemoved(Jemma jemma, Appliance appliance)
-    {
-        if (appliance.getId().equals(applianceId))
-        {
+    public void onApplianceRemoved(Jemma jemma, Appliance appliance) {
+        String applianceId = getApplianceId();
+        if (appliance.getId().equals(applianceId)) {
             updateStatus(ThingStatus.OFFLINE);
         }
 
     }
-    
-    public static String getTypeId(Appliance appliance)
-    {
-        //TODO This is a temporary solution waiting for the actual module dedicated to appliance model derivation to be implemented   
-        switch(appliance.getType())
-        {
+
+    public static String getTypeId(Appliance appliance) {
+        // TODO This is a temporary solution waiting for the actual module dedicated to appliance model derivation to be
+        // implemented. It would be wise to have a mapping as close as possible to 1:1
+        switch (appliance.getType()) {
             case AH_EP_ZIGBEE_SMARTPLUG:
                 return THING_TYPE_FLEXPLUG_A00500201.getId();
             case UNKNOWN_APPLIANCE_TYPE:
-                return THING_TYPE_UNKNOWN.getId();                
+                return THING_TYPE_UNKNOWN.getId();
         }
-        return THING_TYPE_FLEXPLUG_A00500201.getId();
+        return THING_TYPE_UNKNOWN.getId();
     }
 
     @Override
-    public void onApplianceStatusChanged(Jemma jemma, Appliance appliance)
-    {
+    public void onApplianceStatusChanged(Jemma jemma, Appliance appliance) {
         // TODO Auto-generated method stub
 
+    }
+
+    @Override
+    public void onOffStateUpdated(State state) {
+        logger.info("Appliance {} called OnOffStateUpdated with value {}", appliance.getId(), state);
+        updateState(getThing().getChannel(CHANNEL_ONOFF).getUID(), state);
     }
 }

@@ -13,19 +13,19 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-public class Jemma implements Comparable<Jemma>{
+public class Jemma implements Comparable<Jemma> {
     private URI jemmaURI;
-    private JemmaAuthenticator jemmaAuthenticator;
+    private Authenticator jemmaAuthenticator;
     private JemmaEnquirer enquirer = null;
     private Set<JemmaMethod> methods = null;
     private Set<Appliance> appliances = null;
     private boolean connected = false;
 
     public Jemma(URI jemmaURL) {
-        this(jemmaURL, new JemmaAuthenticator());
+        this(jemmaURL, new Authenticator());
     }
 
-    public Jemma(URI jemmaURI, JemmaAuthenticator jemmaAuthenticator) {
+    public Jemma(URI jemmaURI, Authenticator jemmaAuthenticator) {
         this.jemmaURI = jemmaURI;
         this.jemmaAuthenticator = jemmaAuthenticator;
     }
@@ -41,40 +41,45 @@ public class Jemma implements Comparable<Jemma>{
         }
         connected = true;
     }
-    
-    public void disconnect()
-    {
-        if(connected)
-        {
+
+    public void disconnect() {
+        if (connected) {
             connected = false;
-            if(enquirer != null)
+            if (enquirer != null) {
                 enquirer.release();
+            }
             enquirer = null;
         }
     }
 
-    public Set<Appliance> getAppliances() {
-        Set<Appliance> localAppliances = appliances;
+    public synchronized Set<Appliance> getAppliances() {
 
         if (appliances == null) {
-            try {
-                localAppliances = enquirer.getAppliances();
-                appliances = localAppliances;
-            } catch (IOException | MethodNotSupportedException e) {
-                localAppliances = new HashSet<Appliance>();
-                e.printStackTrace();
+            refresh();
+        }
+
+        return (appliances == null) ? new HashSet<Appliance>() : appliances;
+    }
+
+    public synchronized void refresh() {
+        Set<Appliance> localAppliances;
+
+        try {
+            localAppliances = enquirer.getAppliances();
+        } catch (IOException | MethodNotSupportedException e) {
+            localAppliances = new HashSet<Appliance>();
+            e.printStackTrace();
+        }
+        appliances = localAppliances;
+    }
+
+    public Appliance getAppliance(String applianceId) {
+        for (Appliance appliance : getAppliances()) {
+            if (appliance.getId().equals(applianceId)) {
+                return appliance;
             }
         }
 
-        return localAppliances;
-    }
-    
-    public Appliance getAppliance(String applianceId)
-    {
-        for(Appliance appliance : appliances)
-            if(appliance.getId().equals(applianceId))
-                return appliance;
-        
         return null;
     }
 
@@ -112,17 +117,17 @@ public class Jemma implements Comparable<Jemma>{
         return super.hashCode();
     }
 
-    public static class JemmaAuthenticator {
+    public static class Authenticator {
         public static final String DEFAULT_USERNAME = "admin";
         public static final String DEFAULT_PASSWORD = "Admin";
         String username;
         String password;
 
-        public JemmaAuthenticator() {
+        public Authenticator() {
             this(DEFAULT_USERNAME, DEFAULT_PASSWORD);
         }
 
-        public JemmaAuthenticator(String username, String password) {
+        public Authenticator(String username, String password) {
             this.username = username;
             this.password = password;
         }
@@ -210,8 +215,7 @@ public class Jemma implements Comparable<Jemma>{
     }
 
     @Override
-    public int compareTo(Jemma other) 
-    {
+    public int compareTo(Jemma other) {
         return jemmaURI.compareTo(other.jemmaURI);
     }
 }

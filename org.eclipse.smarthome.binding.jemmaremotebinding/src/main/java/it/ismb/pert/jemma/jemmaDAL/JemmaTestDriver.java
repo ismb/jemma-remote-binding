@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import it.ismb.pert.jemma.jemmaDAL.Appliance.UnsupportedActionException;
-import it.ismb.pert.jemma.jemmaDAL.Jemma.JemmaAuthenticator;
+import it.ismb.pert.jemma.jemmaDAL.Jemma.Authenticator;
 import it.ismb.pert.jemma.jemmaDAL.JemmaRPCManager.JemmaCredentialsProvider;
 
 public class JemmaTestDriver implements JemmaCredentialsProvider 
@@ -25,7 +25,7 @@ public class JemmaTestDriver implements JemmaCredentialsProvider
 			
 			JemmaRPCManager manager = JemmaRPCManager.getInstance();
 			for(URI uri : jemmasList)
-			    manager.buildJemma(jemmaURI, test);
+			    manager.getJemma(uri, test);
 			
 			List<Object> actionParams = new ArrayList<Object>();
 			for(Appliance device : manager.getAllAppliances())
@@ -56,9 +56,9 @@ public class JemmaTestDriver implements JemmaCredentialsProvider
 	}
 
 	@Override
-	public JemmaAuthenticator submitCredential(URI jemmaURI) {
+	public Authenticator submitCredential(URI jemmaURI) {
 		// Default authenticator
-		return new JemmaAuthenticator();
+		return new Authenticator();
 	}
 
 }

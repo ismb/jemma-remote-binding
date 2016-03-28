@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.TreeSet;
 
 import org.apache.http.MethodNotSupportedException;
 import org.apache.http.auth.InvalidCredentialsException;
@@ -18,7 +19,7 @@ public class Jemma implements Comparable<Jemma> {
     private Authenticator jemmaAuthenticator;
     private JemmaEnquirer enquirer = null;
     private Set<JemmaMethod> methods = null;
-    private Set<Appliance> appliances = null;
+    private Set<Appliance> appliances = new TreeSet<>();
     private boolean connected = false;
 
     public Jemma(URI jemmaURL) {
@@ -58,7 +59,7 @@ public class Jemma implements Comparable<Jemma> {
             refresh();
         }
 
-        return (appliances == null) ? new HashSet<Appliance>() : appliances;
+        return (appliances == null) ? new TreeSet<Appliance>() : appliances;
     }
 
     public synchronized void refresh() {
@@ -70,7 +71,7 @@ public class Jemma implements Comparable<Jemma> {
             localAppliances = new HashSet<Appliance>();
             e.printStackTrace();
         }
-        appliances = localAppliances;
+        appliances.addAll(localAppliances);
     }
 
     public Appliance getAppliance(String applianceId) {

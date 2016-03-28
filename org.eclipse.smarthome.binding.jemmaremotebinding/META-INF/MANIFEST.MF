@@ -1,13 +1,17 @@
 Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
-Bundle-Name: JemmaRemoteBinding Binding
+Bundle-Name: Jemmaremotebinding
 Bundle-SymbolicName: org.eclipse.smarthome.binding.jemmaremotebinding;singleton:=true
-Bundle-Vendor: Eclipse.org/SmartHome
 Bundle-Version: 1.0.0
-Bundle-RequiredExecutionEnvironment: JavaSE-1.7
 Bundle-ClassPath: .
-Import-Package: 
- com.google.common.collect;version="10.0.1",
+Export-Package: it.ismb.pert.jemma.jemmaDAL,
+ org.eclipse.smarthome.binding.jemmaremotebinding,
+ org.eclipse.smarthome.binding.jemmaremotebinding.discovery,
+ org.eclipse.smarthome.binding.jemmaremotebinding.handler,
+ org.eclipse.smarthome.binding.jemmaremotebinding.internal
+Bundle-RequiredExecutionEnvironment: JavaSE-1.7
+Service-Component: OSGI-INF/*.xml
+Import-Package: com.google.common.collect;version="10.0.1",
  org.apache.http;version="4.3.3",
  org.apache.http.auth;version="4.3.6",
  org.apache.http.client;version="4.3.6",
@@ -37,6 +41,3 @@ Import-Package:
  org.json,
  org.osgi.framework;version="1.8.0",
  org.slf4j
-Service-Component: OSGI-INF/*.xml
-Export-Package: org.eclipse.smarthome.binding.jemmaremotebinding,
- org.eclipse.smarthome.binding.jemmaremotebinding.handler

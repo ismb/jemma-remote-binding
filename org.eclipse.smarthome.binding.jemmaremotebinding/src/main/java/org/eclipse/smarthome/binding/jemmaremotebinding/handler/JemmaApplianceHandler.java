@@ -45,6 +45,8 @@ public class JemmaApplianceHandler extends BaseThingHandler
     public static final Set<ThingTypeUID> SUPPORTED_THING_TYPES = Sets.newHashSet(THING_TYPE_FLEXPLUG_A00500201,
             THING_TYPE_UNKNOWN);
     private Appliance appliance = null;
+    Thread bridgeRetriever;
+    private volatile Boolean canContinue = true;
 
     public JemmaApplianceHandler(Thing thing) {
         super(thing);
@@ -86,11 +88,28 @@ public class JemmaApplianceHandler extends BaseThingHandler
         // Long running initialization should be done asynchronously in
         // background.
 
-        if (getAppliance() != null) {
-            updateStatus(ThingStatus.ONLINE);
-        } else {
-            updateStatus(ThingStatus.OFFLINE);
-        }
+        bridgeRetriever = new Thread(new Runnable() {
+
+            @Override
+            public void run() {
+
+                while (true) {
+                    synchronized (canContinue) {
+                        if (!canContinue || (appliance = getAppliance()) != null) {
+                            break;
+                        }
+                    }
+                    try {
+                        Thread.sleep(100);
+                    } catch (InterruptedException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                    }
+                }
+            }
+        });
+        bridgeRetriever.start();
+        updateStatus(ThingStatus.ONLINE);
 
         // Note: When initialization can NOT be done set the status with more
         // details for further
@@ -124,6 +143,15 @@ public class JemmaApplianceHandler extends BaseThingHandler
     @Override
     public void dispose() {
         super.dispose();
+        synchronized (canContinue) {
+            canContinue = false;
+        }
+        try {
+            bridgeRetriever.join();
+        } catch (InterruptedException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
         JemmaBridgeHandler jemmaHandler;
         if ((jemmaHandler = getBridgeHandler()) != null) {
             jemmaHandler.unregisterApplianceStatusListener(this);

@@ -33,7 +33,7 @@ public class Appliance implements Comparable<Appliance> {
     private String modelId;
     Set<ApplianceAction> actionsList = null;
     private JemmaEnquirer enquirer;
-    Set<OnApplianceStatusUpdatedListener> onApplianceStatusUpdatedListeners = new HashSet<>();
+    private volatile Set<OnApplianceStatusUpdatedListener> onApplianceStatusUpdatedListeners = new HashSet<>();
 
     private Appliance(JSONObject jsonRepr, JemmaEnquirer enquirer) throws JSONException {
         this.applianceId = Appliance.getIdFromJson(jsonRepr);
@@ -166,7 +166,7 @@ public class Appliance implements Comparable<Appliance> {
         JemmaResponse response;
         logger.info("Synchronizing appliance {}", applianceId);
         try {
-            response = enquirer.callJemmaMethod(JemmaMethod.GET_APPLIANCES_CONFIGURATIONS_DEMO, null);
+            response = enquirer.callJemmaMethod(JemmaMethod.GET_APPLIANCES_CONFIGURATIONS_DEMO, new ArrayList<>());
             JSONArray jarray = response.getResponseAsJSONObject().getJSONObject(JemmaEnquirer.RESULT_KEY)
                     .getJSONArray(JemmaEnquirer.LIST_KEY);
 
@@ -205,7 +205,7 @@ public class Appliance implements Comparable<Appliance> {
             switch (action) {
                 case OnOffServer:
                     method = OnApplianceStatusUpdatedListener.class
-                            .getMethod(OnApplianceStatusUpdatedListener.ON_OFF_STATE_UPDATED, OnOffType.class);
+                            .getMethod(OnApplianceStatusUpdatedListener.ON_OFF_STATE_UPDATED, State.class);
                     break;
                 case SimpleMeteringServer:
                     // TODO
@@ -213,8 +213,11 @@ public class Appliance implements Comparable<Appliance> {
             }
 
             if (method != null) {
-                for (OnApplianceStatusUpdatedListener listener : onApplianceStatusUpdatedListeners) {
-                    method.invoke(listener, state);
+                synchronized (onApplianceStatusUpdatedListeners) {
+                    for (OnApplianceStatusUpdatedListener listener : onApplianceStatusUpdatedListeners) {
+                        logger.info("Broadcasting appliance status");
+                        method.invoke(listener, state);
+                    }
                 }
             }
         } catch (NoSuchMethodException | IllegalAccessException | IllegalArgumentException
@@ -234,7 +237,7 @@ public class Appliance implements Comparable<Appliance> {
             }
         }
         if (jValue != null) {
-            return jValue.getBoolean(JemmaEnquirer.VALUE_KEY);
+            return jValue.getJSONObject(JemmaEnquirer.VALUE_KEY).getBoolean(JemmaEnquirer.VALUE_KEY);
         }
 
         return false;
@@ -313,13 +316,18 @@ public class Appliance implements Comparable<Appliance> {
         if (listener == null) {
             throw new NullPointerException("Null event handler not valid");
         }
-        boolean result = onApplianceStatusUpdatedListeners.add(listener);
+        boolean result = false;
+        synchronized (onApplianceStatusUpdatedListeners) {
+            result = onApplianceStatusUpdatedListeners.add(listener);
+        }
 
         return result;
     }
 
     public void unregisterOnApplianceStatusUpdatedListener(OnApplianceStatusUpdatedListener listener) {
-        onApplianceStatusUpdatedListeners.remove(listener);
+        synchronized (onApplianceStatusUpdatedListeners) {
+            onApplianceStatusUpdatedListeners.remove(listener);
+        }
     }
 
     public interface OnApplianceStatusUpdatedListener {

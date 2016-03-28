@@ -3,10 +3,13 @@ package org.eclipse.smarthome.binding.jemmaremotebinding.handler;
 
 import static org.eclipse.smarthome.binding.jemmaremotebinding.JemmaConstants.*;
 
+import java.math.BigDecimal;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -31,7 +34,7 @@ public class JemmaBridgeHandler extends BaseThingHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(JemmaBridgeHandler.class);
     public static final Set<ThingTypeUID> SUPPORTED_THING_TYPES = Collections.singleton(THING_TYPE_BRIDGE);
-    private static final int POLLING_INTERVAL = 5;
+    private static final int POLLING_INTERVAL = 10;
 
     private Set<ApplianceStatusListener> applianceStatusListeners = new HashSet<>();
     private Jemma jemma = null;
@@ -43,15 +46,7 @@ public class JemmaBridgeHandler extends BaseThingHandler {
         super(thing);
         logger.debug("Initializing JEMMA handler.");
 
-        Configuration configuration = getThing().getConfiguration();
-
         try {
-            String address = (String) configuration.get(ADDRESS_KEY);
-            Integer port = Integer.parseInt(((String) configuration.get(PORT_KEY)));
-
-            jemmaURI = new URIBuilder().setScheme("http").setHost(address).setPort(port).setPath("/demo/JSON-RPC")
-                    .build();
-
             jemma = getJemma();
 
         } catch (Exception e) {
@@ -121,7 +116,7 @@ public class JemmaBridgeHandler extends BaseThingHandler {
                     return new Authenticator(); // default
                 }
             };
-            localJemma = JemmaRPCManager.getInstance().getJemma(jemmaURI, provider);
+            localJemma = JemmaRPCManager.getInstance().getJemma(getJemmaURI(), provider);
             if (localJemma != null) {
                 jemma = localJemma;
                 broadcastApplianceStatus(getAppliances(), ThingStatus.ONLINE);
@@ -131,12 +126,29 @@ public class JemmaBridgeHandler extends BaseThingHandler {
         return localJemma;
     }
 
+    private URI getJemmaURI() {
+
+        if (jemmaURI == null) {
+            Configuration configuration = getThing().getConfiguration();
+
+            try {
+                String address = (String) configuration.get(ADDRESS_KEY);
+                BigDecimal port = (BigDecimal) configuration.get(PORT_KEY);
+
+                jemmaURI = new URIBuilder().setScheme("http").setHost(address).setPort(port.intValue())
+                        .setPath("/demo/JSON-RPC").build();
+            } catch (URISyntaxException e) {
+            }
+        }
+        return jemmaURI;
+    }
+
     public Set<Appliance> getAppliances() {
         Jemma localJemma = getJemma();
         if (localJemma != null) {
             return localJemma.getAppliances();
         }
-        return new HashSet<>();
+        return new TreeSet<>();
     }
 
     public Appliance getApplianceById(String applianceId) {
@@ -178,28 +190,28 @@ public class JemmaBridgeHandler extends BaseThingHandler {
             Jemma localJemma = getJemma();
             if (localJemma != null) {
                 localJemma.refresh();
-                logger.debug("Synchronizing jemma...");
 
                 Set<Appliance> remoteAppliances = getAppliances();
 
-                logger.debug("Synchronizing jemma got {} appliances", remoteAppliances.size());
-
+                Set<Appliance> localAppliances;
                 // removed appliances
-                Set<Appliance> localAppliances = new HashSet<>(appliances);
+                if (appliances == null) {
+                    appliances = new TreeSet<>();
+                }
+
+                localAppliances = new TreeSet<>(appliances);
                 localAppliances.removeAll(remoteAppliances);
-                logger.debug("Synchronizing jemma {} appliances removed", localAppliances.size());
                 broadcastApplianceStatus(localAppliances, ThingStatus.REMOVED);
+
                 // new appliances
-                localAppliances = new HashSet<>(remoteAppliances);
+                localAppliances = new TreeSet<>(remoteAppliances);
                 localAppliances.removeAll(appliances);
-                logger.debug("Synchronizing jemma: {} new appliances", localAppliances.size());
                 broadcastApplianceStatus(localAppliances, ThingStatus.ONLINE);
 
-                appliances = remoteAppliances;
+                appliances.addAll(remoteAppliances);
 
                 // set appliance status
-                logger.debug("Synchronizing jemma synchronizing {} appliances", remoteAppliances.size());
-                updateAppliancesStatus(remoteAppliances);
+                updateAppliancesStatus(appliances);
                 logger.debug("Synchronization for jemma done");
             }
 
